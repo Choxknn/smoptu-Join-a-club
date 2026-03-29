@@ -179,17 +179,26 @@
 
         Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
+        // ป้องกันเด็กลงรหัสที่มีเครื่องหมายทับ (/) ซึ่งจะทำให้ Firebase พัง
+        const safeStudentId = String(studentData.id).replace(/\//g, "-");
+
         const clubRef = doc(db, "clubs", clubId);
-        const regRef = doc(db, "registrations", studentData.id);
+        const regRef = doc(db, "registrations", safeStudentId);
 
         try {
             await runTransaction(db, async (transaction) => {
                 const regDoc = await transaction.get(regRef);
-                if (regDoc.exists()) throw "ALREADY_REGISTERED";
-                const clubDoc = await transaction.get(clubRef);
-                if (clubDoc.data().enrolled >= clubDoc.data().quota) throw "FULL";
+                if (regDoc.exists()) throw new Error("ALREADY_REGISTERED");
 
-                transaction.update(clubRef, { enrolled: clubDoc.data().enrolled + 1 });
+                const clubDoc = await transaction.get(clubRef);
+                
+                // บังคับให้เป็นตัวเลข ป้องกันบัคถ้าในฐานข้อมูลเผลอตั้งเป็นตัวหนังสือ
+                const currentEnrolled = Number(clubDoc.data().enrolled) || 0;
+                const maxQuota = Number(clubDoc.data().quota) || 0;
+
+                if (currentEnrolled >= maxQuota) throw new Error("FULL");
+
+                transaction.update(clubRef, { enrolled: currentEnrolled + 1 });
                 transaction.set(regRef, {
                     student_id: studentData.id,
                     student_name: studentData.name,
@@ -201,6 +210,7 @@
                 });
             });
 
+            // ถ้าทุกอย่างผ่านฉลุย
             localStorage.setItem('hasRegistered', 'true');
             localStorage.setItem('registeredClub', clubName);
             hasRegistered = true;
@@ -212,9 +222,16 @@
             showSection('success');
 
         } catch (error) {
-            if (error === "ALREADY_REGISTERED") Swal.fire('ผิดพลาด', 'รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
-            else if (error === "FULL") Swal.fire('เสียใจด้วย', 'ชมรมนี้เต็มแล้วในขณะที่คุณกด', 'warning');
-            else Swal.fire('ผิดพลาด', 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+            console.error("Transaction Error: ", error);
+            const errMsg = error.message || error;
+            
+            if (errMsg.includes("ALREADY_REGISTERED")) {
+                Swal.fire('ผิดพลาด', 'รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
+            } else if (errMsg.includes("FULL")) {
+                Swal.fire('เสียใจด้วย', 'ชมรมนี้เต็มแล้วในขณะที่คุณกด', 'warning');
+            } else {
+                Swal.fire('การเชื่อมต่อขัดข้อง', 'โปรดตรวจสอบอินเทอร์เน็ตของคุณแล้วลองใหม่', 'error');
+            }
         }
     }
 </script>
