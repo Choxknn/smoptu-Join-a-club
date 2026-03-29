@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบลงทะเบียนเลือกชมรม</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         .container { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
@@ -25,7 +24,7 @@
 <div class="container">
     <h2>📝 ลงทะเบียนเลือกชมรม</h2>
     <form id="registrationForm">
-        <div class="form-group"><label>รหัสนักศึกษา</label><input type="text" id="student_id" required></div>
+        <div class="form-group"><label>รหัสนักศึกษา</label><input type="text" id="student_id" required placeholder="รหัสนักศึกษา"></div>
         <div class="form-group"><label>ชื่อ - นามสกุล</label><input type="text" id="student_name" required></div>
         <div class="form-group"><label>คณะ</label><input type="text" id="faculty" required></div>
         <div class="form-group"><label>สาขา</label><input type="text" id="major" required></div>
@@ -37,75 +36,139 @@
     <div id="message"></div>
 </div>
 
-<script>
-    // ประกาศตัวแปรเชื่อมต่อแค่รอบเดียวเท่านั้น
-    const supabaseUrl = 'https://itjcwgshwxpbeptsdxxa.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0amN3Z3Nod3hwYmVwdHNkeHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODg0MjQsImV4cCI6MjA5MDM2NDQyNH0.dl5b16HlMiebYw58XdwTwElfR3ijJiGF835XlVF44-A';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 1. ใส่ Config ของคุณที่นี่
+    const firebaseConfig = {
+        apiKey: "AIzaSyAABbuxQONpnPapPc1jFCrFq8KczHYPt78",
+        authDomain: "smoptu-join-a-club.firebaseapp.com",
+        projectId: "smoptu-join-a-club",
+        storageBucket: "smoptu-join-a-club.firebasestorage.app",
+        messagingSenderId: "1015406099537",
+        appId: "1:1015406099537:web:9a46a8cbd4d0a0952e4c70",
+        measurementId: "G-3RY6SF3NM7"
+    };
+
+    // 2. เริ่มต้นระบบ Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     const form = document.getElementById('registrationForm');
     const clubSelect = document.getElementById('club_id');
     const submitBtn = document.getElementById('submitBtn');
     const messageDiv = document.getElementById('message');
 
+    // 3. ฟังก์ชันดึงรายชื่อชมรม
     async function loadClubs() {
-        const { data: clubs, error } = await supabase.from('clubs').select('*').order('id');
-        if (error) {
-            console.error(error);
-            return;
-        }
-        clubSelect.innerHTML = '<option value="">-- กรุณาเลือกชมรม --</option>';
-        clubs.forEach(club => {
-            const option = document.createElement('option');
-            option.value = club.id;
-            if (club.enrolled >= club.quota) {
-                option.text = `[เต็ม] ${club.name} (${club.enrolled}/${club.quota})`;
-                option.disabled = true;
-            } else {
-                option.text = `${club.name} (ว่าง ${club.quota - club.enrolled} ที่นั่ง)`;
+        try {
+            const querySnapshot = await getDocs(collection(db, "clubs"));
+            clubSelect.innerHTML = '<option value="">-- กรุณาเลือกชมรม --</option>';
+            
+            if (querySnapshot.empty) {
+                clubSelect.innerHTML = '<option value="">ยังไม่มีข้อมูลชมรมในระบบ</option>';
+                return;
             }
-            clubSelect.appendChild(option);
-        });
+
+            querySnapshot.forEach((doc) => {
+                const club = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id; // ใช้ ID ของเอกสารเป็นรหัสอ้างอิง
+                
+                if (club.enrolled >= club.quota) {
+                    option.text = `[เต็ม] ${club.name} (${club.enrolled}/${club.quota})`;
+                    option.disabled = true;
+                } else {
+                    option.text = `${club.name} (ว่าง ${club.quota - club.enrolled} ที่นั่ง)`;
+                }
+                clubSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error loading clubs:", error);
+            clubSelect.innerHTML = '<option value="">โหลดข้อมูลล้มเหลว</option>';
+        }
     }
 
+    // 4. ฟังก์ชันส่งข้อมูล (พร้อมระบบล็อกคิวตัดโควตา)
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         submitBtn.disabled = true; submitBtn.innerText = 'กำลังประมวลผล...';
         showMessage('', '');
 
-        const { data, error } = await supabase.rpc('register_club', {
-            p_student_id: document.getElementById('student_id').value,
-            p_student_name: document.getElementById('student_name').value,
-            p_faculty: document.getElementById('faculty').value,
-            p_major: document.getElementById('major').value,
-            p_club_id: parseInt(document.getElementById('club_id').value)
-        });
+        const student_id = document.getElementById('student_id').value;
+        const student_name = document.getElementById('student_name').value;
+        const faculty = document.getElementById('faculty').value;
+        const major = document.getElementById('major').value;
+        const club_id = document.getElementById('club_id').value;
 
-        if (error) {
-            showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
-        } else if (data === 'SUCCESS') {
+        const clubRef = doc(db, "clubs", club_id);
+        const regRef = doc(db, "registrations", student_id); // ใช้รหัสนักศึกษาเป็น ID เพื่อกันลงซ้ำ
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                // เช็กว่าเด็กคนนี้เคยลงหรือยัง
+                const regDoc = await transaction.get(regRef);
+                if (regDoc.exists()) {
+                    throw "ALREADY_REGISTERED";
+                }
+
+                // เช็กโควตาชมรม
+                const clubDoc = await transaction.get(clubRef);
+                if (!clubDoc.exists()) {
+                    throw "CLUB_NOT_FOUND";
+                }
+
+                const newEnrolled = clubDoc.data().enrolled + 1;
+                if (newEnrolled > clubDoc.data().quota) {
+                    throw "FULL";
+                }
+
+                // ถ้าผ่านหมด ให้บันทึกข้อมูล
+                transaction.update(clubRef, { enrolled: newEnrolled });
+                transaction.set(regRef, {
+                    student_id: student_id,
+                    student_name: student_name,
+                    faculty: faculty,
+                    major: major,
+                    club_name: clubDoc.data().name,
+                    timestamp: new Date()
+                });
+            });
+
+            // สำเร็จ!
             showMessage('🎉 ลงทะเบียนสำเร็จ!', 'success');
-            form.reset(); loadClubs();
-            localStorage.setItem('hasRegistered', 'true'); checkLocalRegistration();
-        } else if (data === 'ALREADY_REGISTERED') {
-            showMessage('❌ รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
-        } else if (data === 'FULL') { 
-            showMessage('⚠️ ขออภัย ชมรมนี้เต็มแล้ว', 'error'); loadClubs(); 
+            form.reset();
+            loadClubs();
+            localStorage.setItem('hasRegistered', 'true');
+            checkLocalRegistration();
+
+        } catch (error) {
+            if (error === "ALREADY_REGISTERED") {
+                showMessage('❌ รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
+            } else if (error === "FULL") {
+                showMessage('⚠️ ขออภัย ชมรมนี้เต็มแล้วในขณะที่คุณกด', 'error');
+                loadClubs();
+            } else {
+                showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+                console.error(error);
+            }
         }
+
         submitBtn.disabled = false; submitBtn.innerText = 'ยืนยันการลงทะเบียน';
     });
 
     function showMessage(text, type) { 
         messageDiv.innerText = text; messageDiv.className = type; messageDiv.style.display = text ? 'block' : 'none'; 
     }
-    
+
     function checkLocalRegistration() {
         if (localStorage.getItem('hasRegistered') === 'true') {
-            form.style.display = 'none'; showMessage('✅ คุณได้ลงทะเบียนจากอุปกรณ์นี้แล้ว', 'success');
+            form.style.display = 'none'; showMessage('✅ คุณได้ทำการลงทะเบียนจากอุปกรณ์นี้เรียบร้อยแล้ว', 'success');
         }
     }
-    
-    checkLocalRegistration(); 
+
+    checkLocalRegistration();
     loadClubs();
 </script>
 </body>
