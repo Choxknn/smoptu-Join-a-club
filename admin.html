@@ -1,194 +1,173 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจัดการหลังบ้าน (Admin)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Prompt', sans-serif; background-color: #1f2937; } </style>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css" rel="stylesheet">
 </head>
-<body class="text-white p-6">
+<body class="bg-light">
 
-<div class="max-w-6xl mx-auto">
-    <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-        <div class="mb-4 md:mb-0">
-            <h1 class="text-3xl font-bold text-blue-400">👨‍💻 Admin Dashboard</h1>
-            <p class="text-gray-400 mt-1">ระบบจัดการลงทะเบียนชมรม</p>
-        </div>
-        
-        <div class="flex flex-col items-end space-y-3 bg-gray-900 p-4 rounded-xl border border-gray-600">
-            <div class="flex items-center space-x-2">
-                <label class="text-sm text-gray-400">ประกาศเวลาเปิด:</label>
-                <input type="datetime-local" id="open_time_input" class="bg-gray-700 text-white text-sm border border-gray-600 rounded p-1.5 outline-none">
-                <button id="setScheduleBtn" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm font-bold transition">บันทึกเวลา</button>
-            </div>
-            
-            <div class="flex items-center space-x-4 w-full justify-between border-t border-gray-700 pt-3">
-                <span id="system-status-text" class="font-bold text-lg">สถานะ: โหลด...</span>
-                <button id="toggleSystemBtn" class="bg-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">ปุ่มเปิด/ปิด ระบบ</button>
-            </div>
-        </div>
+<div class="container mt-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>ระบบจัดการชมรม (Firebase)</h2>
+    <a href="timer.html" target="_blank" class="btn btn-primary">เปิดหน้าจับเวลา ⏱️</a>
+  </div>
+
+  <div class="card shadow-sm p-4">
+    <div class="mb-3">
+      <label class="form-label">กรองตามชมรม:</label>
+      <select id="clubFilter" class="form-select w-25">
+        <option value="">-- แสดงทั้งหมด --</option>
+        <option value="ชมรมดนตรี">ชมรมดนตรี</option>
+        <option value="ชมรมกีฬา">ชมรมกีฬา</option>
+        <option value="ชมรมวิชาการ">ชมรมวิชาการ</option>
+      </select>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div class="lg:col-span-1 bg-gray-800 p-6 rounded-2xl border border-gray-700">
-            <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">➕ เพิ่มชมรมใหม่</h2>
-            <form id="addClubForm" class="space-y-4">
-                <div><label class="text-sm text-gray-400">ชื่อชมรม</label><input type="text" id="c_name" required class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white outline-none"></div>
-                <div><label class="text-sm text-gray-400">โควตารับ (คน)</label><input type="number" id="c_quota" required class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white outline-none"></div>
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">เพิ่มชมรม</button>
-            </form>
-
-            <h2 class="text-xl font-bold mt-8 mb-4 border-b border-gray-700 pb-2">📋 รายชื่อชมรม</h2>
-            <div id="admin-clubs-list" class="space-y-3"></div>
-        </div>
-
-        <div class="lg:col-span-2 bg-gray-800 p-6 rounded-2xl border border-gray-700 overflow-x-auto">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                <h2 class="text-xl font-bold">🎓 รายชื่อผู้ลงทะเบียนสำเร็จ</h2>
-                <button onclick="loadRegistrations()" class="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">🔄 รีเฟรชข้อมูล</button>
-            </div>
-            <table class="w-full text-left text-sm">
-                <thead class="bg-gray-700 text-gray-300">
-                    <tr><th class="p-3 rounded-tl">เวลา</th><th class="p-3">รหัส</th><th class="p-3">ชื่อ-สกุล</th><th class="p-3">ชมรมที่ได้</th><th class="p-3 rounded-tr">จัดการ</th></tr>
-                </thead>
-                <tbody id="registrations-tbody" class="divide-y divide-gray-700">
-                    <tr><td colspan="5" class="p-4 text-center text-gray-400">กำลังโหลดข้อมูล...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <table id="studentsTable" class="table table-striped w-100">
+      <thead class="table-dark">
+        <tr>
+          <th>รหัสนักศึกษา</th>
+          <th>ชื่อ-สกุล</th>
+          <th>ชมรม</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        </tbody>
+    </table>
+  </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getFirestore, collection, doc, onSnapshot, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+<div class="modal fade" id="moveClubModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">ย้ายชมรม</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editDocId">
+        <p>นักศึกษา: <span id="editStudentName" class="fw-bold"></span></p>
+        <label class="form-label">เลือกชมรมใหม่:</label>
+        <select id="newClubSelect" class="form-select">
+          <option value="ชมรมดนตรี">ชมรมดนตรี</option>
+          <option value="ชมรมกีฬา">ชมรมกีฬา</option>
+          <option value="ชมรมวิชาการ">ชมรมวิชาการ</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn btn-success" onclick="saveNewClub()">บันทึกข้อมูล</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyAABbuxQONpnPapPc1jFCrFq8KczHYPt78",
-        authDomain: "smoptu-join-a-club.firebaseapp.com",
-        projectId: "smoptu-join-a-club",
-        storageBucket: "smoptu-join-a-club.firebasestorage.app",
-        messagingSenderId: "1015406099537",
-        appId: "1:1015406099537:web:9a46a8cbd4d0a0952e4c70"
-    };
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    let systemIsOpen = false;
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-    // ระบบเวลา และสวิตช์เปิดปิด
-    onSnapshot(doc(db, "settings", "system"), (docSnap) => {
-        if (!docSnap.exists()) {
-            setDoc(doc(db, "settings", "system"), { is_open: false, open_time: "" });
-        } else {
-            const data = docSnap.data();
-            systemIsOpen = data.is_open;
-            
-            // อัปเดตช่องเวลาให้ตรงกับฐานข้อมูล
-            if(data.open_time) document.getElementById('open_time_input').value = data.open_time;
+<script>
+  // 1. นำ Config จาก Firebase Project Settings มาใส่ที่นี่
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
 
-            const statusText = document.getElementById('system-status-text');
-            const btn = document.getElementById('toggleSystemBtn');
-            if(systemIsOpen) {
-                statusText.innerHTML = 'สถานะ: <span class="text-green-400">เปิดรับสมัคร 🟢</span>';
-                btn.className = "bg-red-600 px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition shadow-lg text-white";
-                btn.innerText = "ปิดระบบรับสมัคร";
-            } else {
-                statusText.innerHTML = 'สถานะ: <span class="text-red-400">ปิดระบบ 🔴</span>';
-                btn.className = "bg-green-600 px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-lg text-white";
-                btn.innerText = "เปิดระบบรับสมัคร";
-            }
-        }
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let dataTable;
+
+  $(document).ready(function() {
+    loadData();
+  });
+
+  // 2. ฟังก์ชันดึงข้อมูลจาก Firestore
+  function loadData() {
+    db.collection("students").get().then((querySnapshot) => {
+      let tbody = '';
+      querySnapshot.forEach((doc) => {
+        let data = doc.data();
+        tbody += `<tr>
+          <td>${data.studentId}</td>
+          <td>${data.name}</td>
+          <td>${data.club}</td>
+          <td>
+            <button class="btn btn-sm btn-warning" 
+              onclick="openMoveModal('${doc.id}', '${data.name}', '${data.club}')">
+              ย้าย
+            </button>
+          </td>
+        </tr>`;
+      });
+
+      // ทำลายตารางเก่าก่อนสร้างใหม่ (กรณีมีการอัปเดตข้อมูล)
+      if ($.fn.DataTable.isDataTable('#studentsTable')) {
+        $('#studentsTable').DataTable().destroy();
+      }
+
+      $('#tableBody').html(tbody);
+
+      // สร้าง DataTables
+      dataTable = $('#studentsTable').DataTable({
+        dom: '<"row"<"col-sm-12 col-md-6"B><"col-sm-12 col-md-6"f>>rtip',
+        buttons: [
+          { extend: 'excelHtml5', text: 'ส่งออก Excel', className: 'btn btn-success btn-sm' },
+          { extend: 'print', text: 'พิมพ์ / Save PDF', className: 'btn btn-info btn-sm' }
+        ],
+        language: { search: "ค้นหา:" }
+      });
+
+      // กรองตามชมรม
+      $('#clubFilter').on('change', function() {
+        dataTable.column(2).search(this.value).draw();
+      });
     });
+  }
 
-    // ปุ่มบันทึกเวลาเปิด
-    document.getElementById('setScheduleBtn').addEventListener('click', () => {
-        const timeVal = document.getElementById('open_time_input').value;
-        updateDoc(doc(db, "settings", "system"), { open_time: timeVal })
-            .then(() => alert("ประกาศเวลาเปิดระบบให้นักศึกษาเห็นแล้ว!"))
-            .catch(e => alert("Error: " + e));
+  // 3. ฟังก์ชันเปิด Modal
+  function openMoveModal(docId, name, currentClub) {
+    $('#editDocId').val(docId);
+    $('#editStudentName').text(name);
+    $('#newClubSelect').val(currentClub);
+    let modal = new bootstrap.Modal(document.getElementById('moveClubModal'));
+    modal.show();
+  }
+
+  // 4. ฟังก์ชันอัปเดตข้อมูลไปยัง Firestore
+  function saveNewClub() {
+    let docId = $('#editDocId').val();
+    let newClub = $('#newClubSelect').val();
+    
+    db.collection("students").doc(docId).update({
+      club: newClub
+    }).then(() => {
+      $('#moveClubModal').modal('hide');
+      alert('อัปเดตข้อมูลสำเร็จ!');
+      loadData(); // รีโหลดตาราง
+    }).catch((error) => {
+      console.error("Error updating document: ", error);
+      alert('เกิดข้อผิดพลาดในการอัปเดต');
     });
-
-    document.getElementById('toggleSystemBtn').addEventListener('click', () => {
-        if(confirm(`คุณต้องการ ${systemIsOpen ? 'ปิด' : 'เปิด'} ระบบใช่หรือไม่?`)) {
-            updateDoc(doc(db, "settings", "system"), { is_open: !systemIsOpen });
-        }
-    });
-
-    // จัดการชมรม
-    onSnapshot(collection(db, "clubs"), (snapshot) => {
-        const list = document.getElementById('admin-clubs-list');
-        list.innerHTML = '';
-        snapshot.forEach((docSnap) => {
-            const club = docSnap.data();
-            list.innerHTML += `
-                <div class="bg-gray-700 p-3 rounded flex justify-between items-center text-sm">
-                    <div>
-                        <div class="font-bold text-white">${club.name}</div>
-                        <div class="text-gray-400">ยอด: ${club.enrolled}/${club.quota}</div>
-                    </div>
-                    <button onclick="deleteClub('${docSnap.id}', '${club.name}')" class="text-red-400 hover:text-red-300">ลบทิ้ง</button>
-                </div>
-            `;
-        });
-    });
-
-    document.getElementById('addClubForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const name = document.getElementById('c_name').value;
-        const quota = parseInt(document.getElementById('c_quota').value);
-        await addDoc(collection(db, "clubs"), { name: name, quota: quota, enrolled: 0 });
-        e.target.reset();
-    });
-
-    window.deleteClub = async function(id, name) {
-        if(confirm(`ลบชมรม ${name} ใช่หรือไม่?`)) await deleteDoc(doc(db, "clubs", id));
-    }
-
-    // จัดการผู้ลงทะเบียน
-    window.loadRegistrations = async function() {
-        const tbody = document.getElementById('registrations-tbody');
-        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">กำลังโหลด...</td></tr>';
-        const q = query(collection(db, "registrations"), orderBy("timestamp", "desc"));
-        const snapshot = await getDocs(q);
-        
-        tbody.innerHTML = '';
-        if(snapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">ยังไม่มีผู้ลงทะเบียน</td></tr>';
-            return;
-        }
-
-        snapshot.forEach((docSnap) => {
-            const reg = docSnap.data();
-            const time = reg.timestamp ? reg.timestamp.toDate().toLocaleTimeString('th-TH') : '-';
-            tbody.innerHTML += `
-                <tr class="hover:bg-gray-700 transition">
-                    <td class="p-3">${time}</td>
-                    <td class="p-3 font-medium text-blue-300">${reg.student_id}</td>
-                    <td class="p-3">${reg.student_name}</td>
-                    <td class="p-3 text-green-400">${reg.club_name}</td>
-                    <td class="p-3"><button onclick="deleteReg('${docSnap.id}', '${reg.club_id}')" class="bg-red-500 hover:bg-red-600 px-2 py-1 rounded text-xs">เตะออก</button></td>
-                </tr>
-            `;
-        });
-    }
-
-    window.deleteReg = async function(studentId, clubId) {
-        if(confirm(`ลบข้อมูลนักศึกษาคนนี้ และคืนโควตาให้ชมรมใช่หรือไม่?`)) {
-            await deleteDoc(doc(db, "registrations", studentId));
-            const clubRef = doc(db, "clubs", clubId);
-            const clubDoc = await getDoc(clubRef);
-            if(clubDoc.exists()) {
-                 await updateDoc(clubRef, { enrolled: clubDoc.data().enrolled - 1 });
-            }
-            loadRegistrations();
-            alert("ลบสำเร็จและคืนโควตาแล้ว!");
-        }
-    }
-
-    loadRegistrations();
+  }
 </script>
 </body>
 </html>
