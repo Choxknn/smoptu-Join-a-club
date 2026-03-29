@@ -4,172 +4,219 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบลงทะเบียนเลือกชมรม</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .container { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.3s; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        #message { margin-top: 15px; text-align: center; font-weight: bold; padding: 10px; border-radius: 5px; display: none; }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Prompt', sans-serif; background-color: #f3f4f6; } </style>
 </head>
-<body>
+<body class="text-gray-800">
 
-<div class="container">
-    <h2>📝 ลงทะเบียนเลือกชมรม</h2>
-    <form id="registrationForm">
-        <div class="form-group"><label>รหัสนักศึกษา</label><input type="text" id="student_id" required placeholder="รหัสนักศึกษา"></div>
-        <div class="form-group"><label>ชื่อ - นามสกุล</label><input type="text" id="student_name" required></div>
-        <div class="form-group"><label>คณะ</label><input type="text" id="faculty" required></div>
-        <div class="form-group"><label>สาขา</label><input type="text" id="major" required></div>
-        <div class="form-group"><label>เลือกชมรม</label>
-            <select id="club_id" required><option value="">-- กำลังโหลดข้อมูล --</option></select>
+<div class="max-w-3xl mx-auto p-4 mt-10">
+    
+    <div id="profile-section" class="bg-white rounded-2xl shadow-xl p-8 mb-8 hidden">
+        <h2 class="text-2xl font-bold text-center text-blue-600 mb-6">👤 สร้างโปรไฟล์นักศึกษา</h2>
+        <p class="text-center text-gray-500 mb-6 text-sm">กรุณากรอกข้อมูลให้ครบถ้วนก่อนเข้าสู่ระบบเลือกชมรม (ข้อมูลจะถูกบันทึกไว้ในอุปกรณ์นี้)</p>
+        <form id="profileForm" class="space-y-4">
+            <div><label class="block font-medium">รหัสนักศึกษา</label><input type="text" id="p_id" required class="w-full border rounded-lg p-3 mt-1 focus:ring-2 focus:ring-blue-500 outline-none"></div>
+            <div><label class="block font-medium">ชื่อ-นามสกุล</label><input type="text" id="p_name" required class="w-full border rounded-lg p-3 mt-1 focus:ring-2 focus:ring-blue-500 outline-none"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block font-medium">คณะ</label><input type="text" id="p_faculty" required class="w-full border rounded-lg p-3 mt-1 focus:ring-2 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block font-medium">สาขา</label><input type="text" id="p_major" required class="w-full border rounded-lg p-3 mt-1 focus:ring-2 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition mt-4">บันทึกข้อมูลและเข้าสู่ระบบ</button>
+        </form>
+    </div>
+
+    <div id="waiting-section" class="bg-white rounded-2xl shadow-xl p-10 text-center hidden">
+        <div class="text-5xl mb-4">⏳</div>
+        <h2 class="text-2xl font-bold text-gray-700 mb-2">ระบบยังไม่เปิดให้ลงทะเบียน</h2>
+        <p class="text-gray-500">กรุณารอจนกว่าแอดมินจะเปิดระบบ หน้าต่างนี้จะเปลี่ยนไปที่หน้าเลือกชมรมอัตโนมัติ</p>
+        <div class="mt-6 p-4 bg-blue-50 rounded-lg inline-block text-left text-sm">
+            <span class="font-bold">ข้อมูลของคุณ:</span><br>
+            <span id="show-student-info" class="text-blue-600 font-medium"></span>
         </div>
-        <button type="submit" id="submitBtn">ยืนยันการลงทะเบียน</button>
-    </form>
-    <div id="message"></div>
+    </div>
+
+    <div id="clubs-section" class="hidden">
+        <div class="flex justify-between items-end mb-6">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">🎪 เลือกชมรม</h2>
+                <p class="text-gray-500 mt-1">กดปุ่มเลือกชมรมที่ต้องการได้เลย</p>
+            </div>
+            <div class="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">ระบบเปิดอยู่ 🟢</div>
+        </div>
+        
+        <div id="clubs-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </div>
+    </div>
+
+    <div id="success-section" class="bg-white rounded-2xl shadow-xl p-10 text-center hidden">
+        <div class="text-6xl mb-4">🎉</div>
+        <h2 class="text-3xl font-bold text-green-600 mb-2">ลงทะเบียนสำเร็จ!</h2>
+        <p class="text-gray-600 mb-6">คุณได้สิทธิ์เข้าร่วมชมรมเรียบร้อยแล้ว</p>
+        <div class="bg-gray-50 border p-6 rounded-xl text-left inline-block w-full max-w-sm">
+            <p class="text-sm text-gray-500">ชมรมที่ได้:</p>
+            <p id="success-club-name" class="text-xl font-bold text-blue-600 mb-4">-</p>
+            <p class="text-sm text-gray-500">ผู้ลงทะเบียน:</p>
+            <p id="success-student-name" class="font-medium">-</p>
+        </div>
+    </div>
+
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import { getFirestore, collection, doc, onSnapshot, runTransaction, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // 1. ใส่ Config ของคุณที่นี่
     const firebaseConfig = {
         apiKey: "AIzaSyAABbuxQONpnPapPc1jFCrFq8KczHYPt78",
         authDomain: "smoptu-join-a-club.firebaseapp.com",
         projectId: "smoptu-join-a-club",
         storageBucket: "smoptu-join-a-club.firebasestorage.app",
         messagingSenderId: "1015406099537",
-        appId: "1:1015406099537:web:9a46a8cbd4d0a0952e4c70",
-        measurementId: "G-3RY6SF3NM7"
+        appId: "1:1015406099537:web:9a46a8cbd4d0a0952e4c70"
     };
 
-    // 2. เริ่มต้นระบบ Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const form = document.getElementById('registrationForm');
-    const clubSelect = document.getElementById('club_id');
-    const submitBtn = document.getElementById('submitBtn');
-    const messageDiv = document.getElementById('message');
+    // เช็กข้อมูลในเครื่อง
+    let studentData = JSON.parse(localStorage.getItem('studentData'));
+    let hasRegistered = localStorage.getItem('hasRegistered') === 'true';
+    let registeredClub = localStorage.getItem('registeredClub');
 
-    // 3. ฟังก์ชันดึงรายชื่อชมรม
-    async function loadClubs() {
-        try {
-            const querySnapshot = await getDocs(collection(db, "clubs"));
-            clubSelect.innerHTML = '<option value="">-- กรุณาเลือกชมรม --</option>';
-            
-            if (querySnapshot.empty) {
-                clubSelect.innerHTML = '<option value="">ยังไม่มีข้อมูลชมรมในระบบ</option>';
-                return;
-            }
+    const sections = {
+        profile: document.getElementById('profile-section'),
+        waiting: document.getElementById('waiting-section'),
+        clubs: document.getElementById('clubs-section'),
+        success: document.getElementById('success-section')
+    };
 
-            querySnapshot.forEach((doc) => {
-                const club = doc.data();
-                const option = document.createElement('option');
-                option.value = doc.id; // ใช้ ID ของเอกสารเป็นรหัสอ้างอิง
-                
-                if (club.enrolled >= club.quota) {
-                    option.text = `[เต็ม] ${club.name} (${club.enrolled}/${club.quota})`;
-                    option.disabled = true;
-                } else {
-                    option.text = `${club.name} (ว่าง ${club.quota - club.enrolled} ที่นั่ง)`;
-                }
-                clubSelect.appendChild(option);
-            });
-        } catch (error) {
-            console.error("Error loading clubs:", error);
-            clubSelect.innerHTML = '<option value="">โหลดข้อมูลล้มเหลว</option>';
-        }
+    function showSection(name) {
+        Object.values(sections).forEach(sec => sec.classList.add('hidden'));
+        sections[name].classList.remove('hidden');
     }
 
-    // 4. ฟังก์ชันส่งข้อมูล (พร้อมระบบล็อกคิวตัดโควตา)
-    form.addEventListener('submit', async (e) => {
+    // จัดการหน้าจอแรก
+    if (hasRegistered) {
+        document.getElementById('success-club-name').innerText = registeredClub;
+        document.getElementById('success-student-name').innerText = studentData.name;
+        showSection('success');
+    } else if (!studentData) {
+        showSection('profile');
+    } else {
+        document.getElementById('show-student-info').innerText = `${studentData.id} - ${studentData.name}`;
+        startListening();
+    }
+
+    // ฟอร์มบันทึกโปรไฟล์
+    document.getElementById('profileForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        submitBtn.disabled = true; submitBtn.innerText = 'กำลังประมวลผล...';
-        showMessage('', '');
+        studentData = {
+            id: document.getElementById('p_id').value,
+            name: document.getElementById('p_name').value,
+            faculty: document.getElementById('p_faculty').value,
+            major: document.getElementById('p_major').value
+        };
+        localStorage.setItem('studentData', JSON.stringify(studentData));
+        document.getElementById('show-student-info').innerText = `${studentData.id} - ${studentData.name}`;
+        startListening();
+    });
 
-        const student_id = document.getElementById('student_id').value;
-        const student_name = document.getElementById('student_name').value;
-        const faculty = document.getElementById('faculty').value;
-        const major = document.getElementById('major').value;
-        const club_id = document.getElementById('club_id').value;
+    // ฟังสถานะระบบและการ์ดชมรมแบบ Real-time
+    function startListening() {
+        showSection('waiting');
 
-        const clubRef = doc(db, "clubs", club_id);
-        const regRef = doc(db, "registrations", student_id); // ใช้รหัสนักศึกษาเป็น ID เพื่อกันลงซ้ำ
+        // ฟังการเปิดปิดระบบจากแอดมิน
+        onSnapshot(doc(db, "settings", "system"), (docSnap) => {
+            if (docSnap.exists() && docSnap.data().is_open) {
+                if (!hasRegistered) showSection('clubs');
+            } else {
+                if (!hasRegistered) showSection('waiting');
+            }
+        });
+
+        // ฟังยอดชมรม
+        onSnapshot(collection(db, "clubs"), (snapshot) => {
+            const grid = document.getElementById('clubs-grid');
+            grid.innerHTML = '';
+            snapshot.forEach((docSnap) => {
+                const club = docSnap.data();
+                const isFull = club.enrolled >= club.quota;
+                const remain = club.quota - club.enrolled;
+                
+                grid.innerHTML += `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col justify-between ${isFull ? 'opacity-60' : ''}">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">${club.name}</h3>
+                            <div class="flex items-center text-sm ${isFull ? 'text-red-500' : 'text-blue-500'} font-medium bg-gray-50 p-2 rounded-lg inline-block mb-4">
+                                🧑‍🤝‍🧑 สมัครแล้ว ${club.enrolled} / ${club.quota} (ว่าง ${remain} ที่)
+                            </div>
+                        </div>
+                        <button onclick="registerClub('${docSnap.id}', '${club.name}')" 
+                            class="w-full py-3 rounded-lg font-bold text-white transition ${isFull ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" 
+                            ${isFull ? 'disabled' : ''}>
+                            ${isFull ? 'เต็มแล้ว' : 'เลือกชมรมนี้'}
+                        </button>
+                    </div>
+                `;
+            });
+        });
+    }
+
+    // ฟังก์ชันส่งข้อมูล (ตัดโควตา)
+    window.registerClub = async function(clubId, clubName) {
+        const confirm = await Swal.fire({
+            title: 'ยืนยันการเลือก?',
+            text: `คุณต้องการเลือก "${clubName}" ใช่หรือไม่?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยัน',
+            cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        const clubRef = doc(db, "clubs", clubId);
+        const regRef = doc(db, "registrations", studentData.id);
 
         try {
             await runTransaction(db, async (transaction) => {
-                // เช็กว่าเด็กคนนี้เคยลงหรือยัง
                 const regDoc = await transaction.get(regRef);
-                if (regDoc.exists()) {
-                    throw "ALREADY_REGISTERED";
-                }
-
-                // เช็กโควตาชมรม
+                if (regDoc.exists()) throw "ALREADY_REGISTERED";
                 const clubDoc = await transaction.get(clubRef);
-                if (!clubDoc.exists()) {
-                    throw "CLUB_NOT_FOUND";
-                }
+                if (clubDoc.data().enrolled >= clubDoc.data().quota) throw "FULL";
 
-                const newEnrolled = clubDoc.data().enrolled + 1;
-                if (newEnrolled > clubDoc.data().quota) {
-                    throw "FULL";
-                }
-
-                // ถ้าผ่านหมด ให้บันทึกข้อมูล
-                transaction.update(clubRef, { enrolled: newEnrolled });
+                transaction.update(clubRef, { enrolled: clubDoc.data().enrolled + 1 });
                 transaction.set(regRef, {
-                    student_id: student_id,
-                    student_name: student_name,
-                    faculty: faculty,
-                    major: major,
-                    club_name: clubDoc.data().name,
+                    student_id: studentData.id,
+                    student_name: studentData.name,
+                    faculty: studentData.faculty,
+                    major: studentData.major,
+                    club_id: clubId,
+                    club_name: clubName,
                     timestamp: new Date()
                 });
             });
 
-            // สำเร็จ!
-            showMessage('🎉 ลงทะเบียนสำเร็จ!', 'success');
-            form.reset();
-            loadClubs();
             localStorage.setItem('hasRegistered', 'true');
-            checkLocalRegistration();
+            localStorage.setItem('registeredClub', clubName);
+            hasRegistered = true;
+            registeredClub = clubName;
+            
+            Swal.fire('สำเร็จ!', 'คุณได้สิทธิ์เข้าร่วมชมรมแล้ว', 'success');
+            document.getElementById('success-club-name').innerText = clubName;
+            document.getElementById('success-student-name').innerText = studentData.name;
+            showSection('success');
 
         } catch (error) {
-            if (error === "ALREADY_REGISTERED") {
-                showMessage('❌ รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
-            } else if (error === "FULL") {
-                showMessage('⚠️ ขออภัย ชมรมนี้เต็มแล้วในขณะที่คุณกด', 'error');
-                loadClubs();
-            } else {
-                showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
-                console.error(error);
-            }
-        }
-
-        submitBtn.disabled = false; submitBtn.innerText = 'ยืนยันการลงทะเบียน';
-    });
-
-    function showMessage(text, type) { 
-        messageDiv.innerText = text; messageDiv.className = type; messageDiv.style.display = text ? 'block' : 'none'; 
-    }
-
-    function checkLocalRegistration() {
-        if (localStorage.getItem('hasRegistered') === 'true') {
-            form.style.display = 'none'; showMessage('✅ คุณได้ทำการลงทะเบียนจากอุปกรณ์นี้เรียบร้อยแล้ว', 'success');
+            if (error === "ALREADY_REGISTERED") Swal.fire('ผิดพลาด', 'รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
+            else if (error === "FULL") Swal.fire('เสียใจด้วย', 'ชมรมนี้เต็มแล้วในขณะที่คุณกด', 'warning');
+            else Swal.fire('ผิดพลาด', 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
         }
     }
-
-    checkLocalRegistration();
-    loadClubs();
 </script>
 </body>
 </html>
