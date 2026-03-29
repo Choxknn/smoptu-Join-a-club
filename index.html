@@ -207,6 +207,7 @@
         });
     }
 
+    // ฟังก์ชันส่งข้อมูล (ตัดโควตาแบบอัปเกรดความปลอดภัย)
     window.registerClub = async function(clubId, clubName) {
         const confirm = await Swal.fire({
             title: 'ยืนยันการเลือก?',
@@ -221,20 +222,34 @@
 
         Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-        const safeStudentId = String(studentData.id).replace(/\//g, "-");
+        // ป้องกัน Error กรณีไม่มีข้อมูล หรือเด็กกรอกอักขระแปลกๆ
+        if (!studentData || !studentData.id) {
+            Swal.fire('ผิดพลาด', 'ข้อมูลไม่สมบูรณ์ กรุณากดออกจากระบบแล้วกรอกประวัติใหม่', 'error');
+            return;
+        }
+        
+        // ตัดช่องว่างและเปลี่ยนเครื่องหมายทับให้เป็นขีด (Firebase ห้ามใช้เครื่องหมาย / เป็นชื่อข้อมูล)
+        const safeStudentId = String(studentData.id).trim().replace(/\//g, "-");
+        
         const clubRef = doc(db, "clubs", clubId);
         const regRef = doc(db, "registrations", safeStudentId);
 
         try {
             await runTransaction(db, async (transaction) => {
+                // 1. เช็กว่าเด็กลงไปแล้วหรือยัง
                 const regDoc = await transaction.get(regRef);
                 if (regDoc.exists()) throw new Error("ALREADY_REGISTERED");
 
+                // 2. เช็กว่าชมรมยังอยู่ไหม
                 const clubDoc = await transaction.get(clubRef);
+                if (!clubDoc.exists()) throw new Error("CLUB_NOT_FOUND");
+
+                // 3. เช็กโควตา
                 const currentEnrolled = Number(clubDoc.data().enrolled) || 0;
                 const maxQuota = Number(clubDoc.data().quota) || 0;
                 if (currentEnrolled >= maxQuota) throw new Error("FULL");
 
+                // 4. บันทึกข้อมูล
                 transaction.update(clubRef, { enrolled: currentEnrolled + 1 });
                 transaction.set(regRef, {
                     student_id: studentData.id,
@@ -247,6 +262,7 @@
                 });
             });
 
+            // ถ้าผ่านหมด -> สำเร็จ!
             localStorage.setItem('hasRegistered', 'true');
             localStorage.setItem('registeredClub', clubName);
             hasRegistered = true;
@@ -258,13 +274,17 @@
             showSection('success');
 
         } catch (error) {
-            const errMsg = error.message || error;
+            console.error("Transaction Error: ", error);
+            const errMsg = error.message || String(error);
+            
             if (errMsg.includes("ALREADY_REGISTERED")) {
                 Swal.fire('ผิดพลาด', 'รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
             } else if (errMsg.includes("FULL")) {
                 Swal.fire('เสียใจด้วย', 'ชมรมนี้เต็มแล้วในขณะที่คุณกด', 'warning');
+            } else if (errMsg.includes("CLUB_NOT_FOUND")) {
+                Swal.fire('ผิดพลาด', 'ไม่พบชมรมนี้ในระบบ', 'error');
             } else {
-                Swal.fire('การเชื่อมต่อขัดข้อง', 'โปรดตรวจสอบอินเทอร์เน็ต', 'error');
+                Swal.fire('ขัดข้อง', 'การเชื่อมต่อถูกยกเลิก (กรุณาทดสอบผ่านเว็บ GitHub เท่านั้น)', 'error');
             }
         }
     }
