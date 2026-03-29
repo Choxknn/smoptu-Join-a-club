@@ -127,7 +127,7 @@
         });
     }
 
-    // จัดการหน้าจอแรก (ป้องกัน Error ข้อมูลเก่า)
+    // จัดการหน้าจอแรก
     if (hasRegistered && studentData) {
         document.getElementById('success-club-name').innerText = registeredClub || 'ไม่ระบุ';
         document.getElementById('success-student-name').innerText = studentData.name;
@@ -230,35 +230,6 @@
         });
     }
 
-        onSnapshot(collection(db, "clubs"), (snapshot) => {
-            const grid = document.getElementById('clubs-grid');
-            grid.innerHTML = '';
-            snapshot.forEach((docSnap) => {
-                const club = docSnap.data();
-                const current = Number(club.enrolled) || 0;
-                const quota = Number(club.quota) || 0;
-                const isFull = current >= quota;
-                const remain = quota - current;
-                
-                grid.innerHTML += `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col justify-between ${isFull ? 'opacity-60' : ''}">
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">${club.name}</h3>
-                            <div class="flex items-center text-sm ${isFull ? 'text-red-500 bg-red-50' : 'text-blue-600 bg-blue-50'} font-bold p-2 rounded-lg inline-block mb-4">
-                                🧑‍🤝‍🧑 สมัครแล้ว ${current} / ${quota} (ว่าง ${remain} ที่)
-                            </div>
-                        </div>
-                        <button onclick="registerClub('${docSnap.id}', '${club.name}')" 
-                            class="w-full py-3 rounded-lg font-bold text-white transition ${isFull ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}" 
-                            ${isFull ? 'disabled' : ''}>
-                            ${isFull ? 'เต็มแล้ว' : 'เลือกชมรมนี้'}
-                        </button>
-                    </div>
-                `;
-            });
-        });
-    }
-
     // ฟังก์ชันส่งข้อมูล (ตัดโควตาแบบอัปเกรดความปลอดภัย)
     window.registerClub = async function(clubId, clubName) {
         const confirm = await Swal.fire({
@@ -274,34 +245,27 @@
 
         Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-        // ป้องกัน Error กรณีไม่มีข้อมูล หรือเด็กกรอกอักขระแปลกๆ
         if (!studentData || !studentData.id) {
             Swal.fire('ผิดพลาด', 'ข้อมูลไม่สมบูรณ์ กรุณากดออกจากระบบแล้วกรอกประวัติใหม่', 'error');
             return;
         }
         
-        // ตัดช่องว่างและเปลี่ยนเครื่องหมายทับให้เป็นขีด (Firebase ห้ามใช้เครื่องหมาย / เป็นชื่อข้อมูล)
         const safeStudentId = String(studentData.id).trim().replace(/\//g, "-");
-        
         const clubRef = doc(db, "clubs", clubId);
         const regRef = doc(db, "registrations", safeStudentId);
 
         try {
             await runTransaction(db, async (transaction) => {
-                // 1. เช็กว่าเด็กลงไปแล้วหรือยัง
                 const regDoc = await transaction.get(regRef);
                 if (regDoc.exists()) throw new Error("ALREADY_REGISTERED");
 
-                // 2. เช็กว่าชมรมยังอยู่ไหม
                 const clubDoc = await transaction.get(clubRef);
                 if (!clubDoc.exists()) throw new Error("CLUB_NOT_FOUND");
 
-                // 3. เช็กโควตา
                 const currentEnrolled = Number(clubDoc.data().enrolled) || 0;
                 const maxQuota = Number(clubDoc.data().quota) || 0;
                 if (currentEnrolled >= maxQuota) throw new Error("FULL");
 
-                // 4. บันทึกข้อมูล
                 transaction.update(clubRef, { enrolled: currentEnrolled + 1 });
                 transaction.set(regRef, {
                     student_id: studentData.id,
@@ -314,7 +278,6 @@
                 });
             });
 
-            // ถ้าผ่านหมด -> สำเร็จ!
             localStorage.setItem('hasRegistered', 'true');
             localStorage.setItem('registeredClub', clubName);
             hasRegistered = true;
