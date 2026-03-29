@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบลงทะเบียนเลือกชมรม</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.3s; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #message { margin-top: 15px; text-align: center; font-weight: bold; padding: 10px; border-radius: 5px; display: none; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📝 ลงทะเบียนเลือกชมรม</h2>
+    <form id="registrationForm">
+        <div class="form-group"><label>รหัสนักศึกษา</label><input type="text" id="student_id" required></div>
+        <div class="form-group"><label>ชื่อ - นามสกุล</label><input type="text" id="student_name" required></div>
+        <div class="form-group"><label>คณะ</label><input type="text" id="faculty" required></div>
+        <div class="form-group"><label>สาขา</label><input type="text" id="major" required></div>
+        <div class="form-group"><label>เลือกชมรม</label>
+            <select id="club_id" required><option value="">-- กำลังโหลดข้อมูล --</option></select>
+        </div>
+        <button type="submit" id="submitBtn">ยืนยันการลงทะเบียน</button>
+    </form>
+    <div id="message"></div>
+</div>
+
+<script>
+    const supabaseUrl = 'https://itjcwgshwxpbeptsdxxa.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0amN3Z3Nod3hwYmVwdHNkeHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODg0MjQsImV4cCI6MjA5MDM2NDQyNH0.dl5b16HlMiebYw58XdwTwElfR3ijJiGF835XlVF44-A';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    const form = document.getElementById('registrationForm');
+    const clubSelect = document.getElementById('club_id');
+    const submitBtn = document.getElementById('submitBtn');
+    const messageDiv = document.getElementById('message');
+
+    async function loadClubs() {
+        const { data: clubs, error } = await supabase.from('clubs').select('*').order('id');
+        if (error) return;
+        clubSelect.innerHTML = '<option value="">-- กรุณาเลือกชมรม --</option>';
+        clubs.forEach(club => {
+            const option = document.createElement('option');
+            option.value = club.id;
+            if (club.enrolled >= club.quota) {
+                option.text = `[เต็ม] ${club.name} (${club.enrolled}/${club.quota})`;
+                option.disabled = true;
+            } else {
+                option.text = `${club.name} (ว่าง ${club.quota - club.enrolled} ที่นั่ง)`;
+            }
+            clubSelect.appendChild(option);
+        });
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true; submitBtn.innerText = 'กำลังประมวลผล...';
+        showMessage('', '');
+
+        const { data, error } = await supabase.rpc('register_club', {
+            p_student_id: document.getElementById('student_id').value,
+            p_student_name: document.getElementById('student_name').value,
+            p_faculty: document.getElementById('faculty').value,
+            p_major: document.getElementById('major').value,
+            p_club_id: parseInt(document.getElementById('club_id').value)
+        });
+
+        if (error) showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+        else if (data === 'SUCCESS') {
+            showMessage('🎉 ลงทะเบียนสำเร็จ!', 'success');
+            form.reset(); loadClubs();
+            localStorage.setItem('hasRegistered', 'true'); checkLocalRegistration();
+        } else if (data === 'ALREADY_REGISTERED') showMessage('❌ รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
+        else if (data === 'FULL') { showMessage('⚠️ ขออภัย ชมรมนี้เต็มแล้ว', 'error'); loadClubs(); }
+        submitBtn.disabled = false; submitBtn.innerText = 'ยืนยันการลงทะเบียน';
+    });
+
+    function showMessage(text, type) { messageDiv.innerText = text; messageDiv.className = type; messageDiv.style.display = text ? 'block' : 'none'; }
+    function checkLocalRegistration() {
+        if (localStorage.getItem('hasRegistered') === 'true') {
+            form.style.display = 'none'; showMessage('✅ คุณได้ลงทะเบียนจากอุปกรณ์นี้แล้ว', 'success');
+        }
+    }
+    checkLocalRegistration(); loadClubs();
+</script>
+</body>
+</html>
