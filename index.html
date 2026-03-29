@@ -38,6 +38,7 @@
 </div>
 
 <script>
+    // ประกาศตัวแปรเชื่อมต่อแค่รอบเดียวเท่านั้น
     const supabaseUrl = 'https://itjcwgshwxpbeptsdxxa.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0amN3Z3Nod3hwYmVwdHNkeHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODg0MjQsImV4cCI6MjA5MDM2NDQyNH0.dl5b16HlMiebYw58XdwTwElfR3ijJiGF835XlVF44-A';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -49,7 +50,10 @@
 
     async function loadClubs() {
         const { data: clubs, error } = await supabase.from('clubs').select('*').order('id');
-        if (error) return;
+        if (error) {
+            console.error(error);
+            return;
+        }
         clubSelect.innerHTML = '<option value="">-- กรุณาเลือกชมรม --</option>';
         clubs.forEach(club => {
             const option = document.createElement('option');
@@ -77,23 +81,32 @@
             p_club_id: parseInt(document.getElementById('club_id').value)
         });
 
-        if (error) showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
-        else if (data === 'SUCCESS') {
+        if (error) {
+            showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+        } else if (data === 'SUCCESS') {
             showMessage('🎉 ลงทะเบียนสำเร็จ!', 'success');
             form.reset(); loadClubs();
             localStorage.setItem('hasRegistered', 'true'); checkLocalRegistration();
-        } else if (data === 'ALREADY_REGISTERED') showMessage('❌ รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
-        else if (data === 'FULL') { showMessage('⚠️ ขออภัย ชมรมนี้เต็มแล้ว', 'error'); loadClubs(); }
+        } else if (data === 'ALREADY_REGISTERED') {
+            showMessage('❌ รหัสนักศึกษานี้ลงทะเบียนไปแล้ว', 'error');
+        } else if (data === 'FULL') { 
+            showMessage('⚠️ ขออภัย ชมรมนี้เต็มแล้ว', 'error'); loadClubs(); 
+        }
         submitBtn.disabled = false; submitBtn.innerText = 'ยืนยันการลงทะเบียน';
     });
 
-    function showMessage(text, type) { messageDiv.innerText = text; messageDiv.className = type; messageDiv.style.display = text ? 'block' : 'none'; }
+    function showMessage(text, type) { 
+        messageDiv.innerText = text; messageDiv.className = type; messageDiv.style.display = text ? 'block' : 'none'; 
+    }
+    
     function checkLocalRegistration() {
         if (localStorage.getItem('hasRegistered') === 'true') {
             form.style.display = 'none'; showMessage('✅ คุณได้ลงทะเบียนจากอุปกรณ์นี้แล้ว', 'success');
         }
     }
-    checkLocalRegistration(); loadClubs();
+    
+    checkLocalRegistration(); 
+    loadClubs();
 </script>
 </body>
 </html>
