@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการหลังบ้าน (Admin)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #007bff; color: white; }
+        .full { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>👨‍💻 ระบบจัดการแอดมิน (Admin Dashboard)</h1>
+    
+    <h2>📊 สถานะชมรม</h2>
+    <table>
+        <thead><tr><th>รหัสชมรม</th><th>ชื่อชมรม</th><th>ที่นั่งทั้งหมด</th><th>สมัครแล้ว</th><th>สถานะ</th></tr></thead>
+        <tbody id="clubTable"><tr><td colspan="5">กำลังโหลดข้อมูล...</td></tr></tbody>
+    </table>
+
+    <h2>รายชื่อนักศึกษาที่ลงทะเบียนแล้ว</h2>
+    <table>
+        <thead><tr><th>เวลาลงทะเบียน</th><th>รหัสนักศึกษา</th><th>ชื่อ-นามสกุล</th><th>คณะ</th><th>สาขา</th><th>รหัสชมรมที่เลือก</th></tr></thead>
+        <tbody id="studentTable"><tr><td colspan="6">กำลังโหลดข้อมูล...</td></tr></tbody>
+    </table>
+</div>
+
+<script>
+    const supabaseUrl = 'https://itjcwgshwxpbeptsdxxa.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0amN3Z3Nod3hwYmVwdHNkeHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODg0MjQsImV4cCI6MjA5MDM2NDQyNH0.dl5b16HlMiebYw58XdwTwElfR3ijJiGF835XlVF44-A';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function loadAdminData() {
+        // โหลดข้อมูลชมรม
+        const { data: clubs } = await supabase.from('clubs').select('*').order('id');
+        const clubTable = document.getElementById('clubTable');
+        clubTable.innerHTML = '';
+        clubs.forEach(club => {
+            const isFull = club.enrolled >= club.quota;
+            clubTable.innerHTML += `<tr>
+                <td>${club.id}</td><td>${club.name}</td><td>${club.quota}</td>
+                <td>${club.enrolled}</td>
+                <td class="${isFull ? 'full' : ''}">${isFull ? 'เต็มแล้ว' : 'ว่าง'}</td>
+            </tr>`;
+        });
+
+        // โหลดข้อมูลนักศึกษา
+        const { data: students } = await supabase.from('registrations').select('*').order('created_at', { ascending: false });
+        const studentTable = document.getElementById('studentTable');
+        studentTable.innerHTML = '';
+        students.forEach(std => {
+            const date = new Date(std.created_at).toLocaleString('th-TH');
+            studentTable.innerHTML += `<tr>
+                <td>${date}</td><td>${std.student_id}</td><td>${std.student_name}</td>
+                <td>${std.faculty}</td><td>${std.major}</td><td>${std.club_id}</td>
+            </tr>`;
+        });
+    }
+
+    loadAdminData();
+</script>
+</body>
+</html>
